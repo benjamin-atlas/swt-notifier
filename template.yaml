@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  swt-notifs
+
+  Sample SAM Template for swt-notifs
+  
+Globals:
+  Function:
+    Timeout: 600
+    MemorySize: 1024
+
+Resources:
+  SwtNotifierFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: swt-notifier/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Environment:
+        Variables:
+          DATABASE_URL: '{{resolve:secretsmanager:swt-dbconn:SecretString:SWT_NOTIFIER_DB_URL}}'
+          SNS_TOPIC_ARN: !Ref SwtNotifierTopic
+          OFFSET: '0'
+          START_DATE: '2024-01-30'
+      Policies:
+      - Statement:
+        - Effect: Allow
+          Action:
+          - 'sns:Publish'
+          Resource:
+          - !Ref SwtNotifierTopic
+      Architectures:
+        - x86_64
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints: 
+        - app.ts
+        
+  SwtNotifierTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Simple Workout Tracker Notifier
+
+  SwNotifierDailyRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: cron(0 12 * * ? *) # 5 AM Mountain Time, daily
+      Targets:
+        - Arn: !GetAtt SwtNotifierFunction.Arn
+          Id: SwNotifierFunctionTarget
+
+  SwtNotifLamInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt SwtNotifierFunction.Arn
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt SwNotifierDailyRule.Arn
+
+Outputs:
+  SwtNotifierFunction:
+    Description: "SwtNotifier Function ARN"
+    Value: !GetAtt SwtNotifierFunction.Arn
