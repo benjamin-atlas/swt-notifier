@@ -101,9 +101,9 @@ export const lambdaHandler = async (): Promise<any> => {
                 `${acc}` +
                 `\n\n------------------------------------------------\n\n` +
                 `${exercise.workoutTitle}\n\n` +
-                `${exercise.workingSets}x${exercise.reps} @ RPE ${exercise.rpe}\n\n` +
+                `${exercise.workingSets}x${exercise.reps} - LSRPE: ${exercise.rpe} - Rest: ${exercise.rest}\n\n` +
                 `${exercise.videolink}\n\n` +
-                `Notes: ${exercise.notes}`
+                `${exercise.notes}`
             );
         }, `Hey goofies, here's the reggie for the day.\n\n🏋🏻 ${result[0].desiredDay.title} 🥩`);
 
