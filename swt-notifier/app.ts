@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import TemplateModel from './models/template';
 import VideoLinkModel from './models/videolink';
+import WeakpointModel from './models/weakpoint';
 import * as AWS from 'aws-sdk';
 
 const getExerciseListAggregatePipeline = (weekIndex: number, dayIndex: number) => [
@@ -96,7 +97,7 @@ export const lambdaHandler = async (): Promise<any> => {
             exercise.videolink = await getVideoLink(exercise.workoutTitle);
         }
 
-        const emailBody = result[0].desiredDay.exercises.reduce((acc: string, exercise: any) => {
+        let emailBody: string = result[0].desiredDay.exercises.reduce((acc: string, exercise: any) => {
             return (
                 `${acc}` +
                 `\n\n------------------------------------------------\n\n` +
@@ -106,6 +107,29 @@ export const lambdaHandler = async (): Promise<any> => {
                 `${exercise.notes}`
             );
         }, `Hey goofies, here's the reggie for the day.\n\n🏋🏻 ${result[0].desiredDay.title} 🥩`);
+
+        if (result[0].desiredDay.title.toLowerCase().includes('weak')) {
+            const weakpoints: any = await WeakpointModel.find().exec();
+            let lastIndex: number;
+            let lastMuscleGroup: string;
+
+            emailBody += `\n\n------------------------------------------------\n\nWEAKPOINTS 😩\n`;
+
+            weakpoints.forEach((weakpoint: any) => {
+                if (weakpoint.weakpoint !== lastMuscleGroup) {
+                    emailBody += `\n-------- ${weakpoint.weakpoint.toUpperCase()} --------\n`;
+                }
+
+                if (weakpoint.index !== lastIndex) {
+                    emailBody += `\nExercise ${weakpoint.index}\n\n`;
+                }
+
+                emailBody += `${weakpoint.exercise} (${weakpoint.url})\n`;
+
+                lastMuscleGroup = weakpoint.weakpoint;
+                lastIndex = weakpoint.index;
+            });
+        }
 
         const params: AWS.SNS.PublishInput = {
             Message: emailBody,
